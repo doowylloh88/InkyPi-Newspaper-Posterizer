@@ -18,7 +18,7 @@
 
 ## Screenshot
 
-![screenshot](https://github.com/doowylloh88/InkyPi-Newspaper-Posterizer/blob/main/docs/Skater_Headline.jpg)
+![screenshot](https://github.com/doowylloh88/InkyPi-Newspaper-Posterizer/blob/main/newspaper_poster/docs/Skater_Headline.jpg)
 
 ## Installation
 
