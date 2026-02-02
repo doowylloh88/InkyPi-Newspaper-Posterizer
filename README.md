@@ -34,7 +34,7 @@ inkypi install doowylloh88 https://github.com/doowylloh88/InkyPi-Newspaper-Poste
 
 - **Open AI API** — You'll need a paid [Open API](https://platform.openai.com/) key to analyze the newspaper's front page and to generate an image
 
-- **Flexible analysis** — You can also analyze the front page using [Groq / Llama Vision](https://platform.openai.com/) 
+- **Flexible analysis** — You can also analyze the front page using [Groq / Llama Vision](https://console.groq.com/home) 
 - OpenAI can be stricter with copyrighted content; Groq/Llama is often more forgiving ( and I just like the results better )
 - Put the API keys in the .env file in the Inky Pi root directory
 
