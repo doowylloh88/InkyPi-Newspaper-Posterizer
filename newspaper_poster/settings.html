@@ -1,0 +1,578 @@
+<!-- Newspaper and Location Search -->
+  <div class="form-group" style="flex: 1;">
+      <label for="newspaper" class="form-label">Newspaper:</label>
+      <input
+          type="text"
+          id="newspaper"
+          name="newspaperName"
+          class="form-input"
+          list="newspaperList"
+          placeholder="Type to search..."
+          oninput="updateSlugAndLocation()"
+          onchange="updateSlugAndLocation()"/>
+        <datalist id="newspaperList">
+          {% for newspaper in newspapers %}
+            <option value="{{ newspaper.name }}" slug="{{ newspaper.slug }}" location="{{ newspaper.city }}, {{ newspaper.country }}"></option>
+          {% endfor %}
+        </datalist>
+      <input type="hidden" id="newspaperSlug" name="newspaperSlug" />
+ </div>
+
+  <div class="form-group" style="flex: 1;">
+      <label for="locationSearch" class="form-label">Location:</label>
+      <input
+          type="text"
+          id="locationSearch"
+          name="locationSearch"
+          class="form-input"
+          list="locationOptions"
+          placeholder="Type to search..."
+          onchange="filterNewspapersByLocation()"/>
+        <datalist id="locationOptions">
+          {% set unique_locations = newspapers | map(attribute='city') | unique | list | sort %}
+          {% for location in unique_locations %}
+              {% set country = (newspapers | selectattr('city', 'equalto', location) | list)[0].country %}
+              <option value="{{ location }}, {{ country }}"></option>
+          {% endfor %}
+      </datalist>
+  </div>
+
+<div class="separator"></div>
+  
+<!-- Vibes and Modals -->
+<div class="form-group">
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:nowrap;">
+        <label for="vibeSelect" class="form-label" style="margin:0; white-space:nowrap;">Vibe:</label>
+          <select id="vibeSelect" name="vibe_id" class="form-input" style="flex:1; min-width:220px;">
+            <option value="">Loading vibes…</option>
+          </select>
+
+            <img src="/images/newspaper_poster/plus.png" alt="Add a Vibe"
+            style="width:24px;height:24px;cursor:pointer; flex:0 0 auto;"
+            onclick="openVibeAddModal()">
+
+            <img src="/images/newspaper_poster/minus.png" alt="Delete a Vibe"
+            style="width:24px;height:24px;cursor:pointer; flex:0 0 auto;"
+             onclick="openVibeDeleteModal()">
+    </div>
+</div>
+
+<div id="vibeAddModal" class="modal">
+    <div class="modal-content">
+        <span class="close-button" onclick="closeVibeAddModal()">&times;</span>
+        <h2>Add Vibe</h2>
+
+        <div class="form-group">
+            <label class="form-label" for="vibeAddName">Vibe Name:</label>
+            <input id="vibeAddName" type="text" class="form-input" />
+        </div>
+
+        <div class="form-group" style="align-items:flex-start;">
+            <label class="form-label" for="vibeAddDesc">Vibe Description:</label>
+            <textarea id="vibeAddDesc" class="form-input" rows="8" style="width:100%;"></textarea>
+        </div>
+
+        <div id="vibeAddError" style="color: var(--accent-warn); font-weight:600; margin-top:8px;"></div>
+
+        <div class="buttons-container" style="margin-top:12px;">
+            <button type="button" class="action-button warn" onclick="closeVibeAddModal()">Cancel</button>
+            <button type="button" class="action-button" onclick="submitVibeAdd()">Add</button>
+        </div>
+    </div>
+</div>
+
+<div id="vibeToast" class="success-failure-modal success" style="display:none;">
+  <div class="response-modal-content">
+    <span id="vibeToastText">Vibe added</span>
+    <span class="close-button" onclick="hideVibeToast()">&times;</span>
+  </div>
+</div>
+
+
+<div id="vibeDeleteModal" class="modal">
+    <div class="modal-content">
+        <span class="close-button" onclick="closeVibeDeleteModal()">&times;</span>
+        <h2>Delete Vibe ?</h2>
+
+        <div class="form-group">
+            <label class="form-label" for="vibeDeleteSelect">Vibe:</label>
+            <select id="vibeDeleteSelect" class="form-input"></select>
+        </div>
+
+        <div id="vibeDeleteError" style="color: var(--accent-warn); font-weight:600; margin-top:8px;"></div>
+
+        <div class="buttons-container" style="margin-top:12px;">
+            <button type="button" class="action-button warn" onclick="closeVibeDeleteModal()">Cancel</button>
+            <button type="button" class="action-button" onclick="submitVibeDelete()">Delete</button>
+        </div>
+    </div>
+</div>
+
+<div id="vibeDeleteConfirmModal" class="modal">
+  <div class="modal-content">
+    <span class="close-button" onclick="closeVibeDeleteConfirmModal()">&times;</span>
+    <h2>Confirm Delete</h2>
+
+    <div class="form-group" style="justify-content:center;">
+      <span id="vibeDeleteConfirmText"></span>
+    </div>
+
+    <div class="buttons-container" style="margin-top:12px;">
+      <button type="button" class="action-button warn" onclick="closeVibeDeleteConfirmModal()">No</button>
+      <button type="button" class="action-button" onclick="confirmVibeDelete()">Yes</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Scale, Blur, Color Options -->
+<div class="form-group">
+    <div class="form-group">
+        <label for="padImage" class="form-label">Scale to Fit:</label>
+        <div class="toggle-container">
+            <input type="checkbox" id="padImage" name="padImage" class="toggle-checkbox" value="false">
+            <label for="padImage" class="toggle-label"></label>
+        </div>
+        <!-- Hidden input ensures 'true' is always sent when unchecked -->
+        <input type="hidden" name="padImage" value="true">
+    </div>
+
+    <div class="form-group">
+        <label class="form-label" for="backgroundOption">Background:</label>
+        <div class="form-group">
+            <input type="radio" id="backgroundOption" name="backgroundOption" value="blur">
+            <label>Blur</label>
+            <input type="radio" id="backgroundOption" name="backgroundOption" value="color">
+            <label>Color</label>
+            <input type="color" id="backgroundColor" name="backgroundColor" value="#ffffff" class="color-picker"/>
+        </div>
+    </div>
+</div>
+
+<!-- Generate the Image Model -->
+      <div class="collapsible">
+              <button type="button" class="collapsible-header" onclick="toggleCollapsible(this)">
+              Model Settings <span class="collapsible-icon">▼</span>
+              </button>
+
+          <div class="settings-container collapsible-content">
+
+              <div class="form-group">
+                <label for="imageModel" class="form-label">Image Model:</label>
+                <select id="imageModel" name="imageModel" class="form-input"
+                  {% if image_models is not defined or (image_models|length == 0) %}disabled{% endif %}>
+                  {% if image_models is defined and image_models|length > 0 %}
+                  {% for m in image_models %}
+                  <option value="{{ m['id'] }}">{{ m['label'] }}</option>
+                  {% endfor %}
+                    {% endif %}
+                  </select>
+              </div>
+
+            <div class="form-group">
+              <label for="analysisModel" class="form-label">Analysis Model:</label>
+              <select id="analysisModel" name="analysisModel" class="form-input"
+                {% if analysis_models is not defined or (analysis_models|length == 0) %}disabled{% endif %}>
+                {% if analysis_models is defined and analysis_models|length > 0 %}
+                {% for m in analysis_models %}
+                <option value="{{ m['id'] }}">{{ m['label'] }}</option>
+                {% endfor %}
+                {% endif %}
+              </select>
+            </div>    
+    </div> 
+  </div>
+
+<script>
+    // Pass the newspapers data as a JavaScript object
+    const newspapers = {{ newspapers|tojson }};
+</script>
+
+<script>
+    function updateSlugAndLocation() {
+        const newspaperInput = document.getElementById("newspaper");
+        const slugInput = document.getElementById("newspaperSlug");
+        const locationInput = document.getElementById("locationSearch");
+
+        // Find the selected newspaper in the JavaScript array
+        const selectedNewspaper = newspapers.find(
+            (newspaper) => newspaper.name === newspaperInput.value
+        );
+
+        if (selectedNewspaper) {
+            slugInput.value = selectedNewspaper.slug;
+            locationInput.value = `${selectedNewspaper.city}, ${selectedNewspaper.country}`;
+        } else {
+            slugInput.value = "";
+            locationInput.value = ""; // Clear location if no newspaper is selected
+
+            // Always filter newspapers based on the current location
+            filterNewspapersByLocation();
+        }
+    }
+
+    function filterNewspapersByLocation() {
+        const locationInput = document.getElementById("locationSearch").value.toLowerCase();
+        const newspaperInput = document.getElementById("newspaper");
+        const newspaperList = document.getElementById("newspaperList");
+
+        // Clear the newspaper list (but not the input) each time the location changes
+        newspaperList.innerHTML = "";
+
+        // Filter newspapers based on the location input
+        newspapers.forEach((newspaper) => {
+            const formattedLocation = `${newspaper.city}, ${newspaper.country}`.toLowerCase();
+
+            if (!locationInput || formattedLocation.includes(locationInput)) {
+                const option = document.createElement("option");
+                option.value = newspaper.name;
+                option.setAttribute("slug", newspaper.slug);
+                option.setAttribute("location", `${newspaper.city}, ${newspaper.country}`);
+                newspaperList.appendChild(option);
+            }
+        });
+    }
+</script>
+
+<script>
+  // ===== helpers =====
+  function _sortVibes(list) {
+    return (Array.isArray(list) ? list : [])
+      .filter(v => v && v.id)
+      .sort((a, b) =>
+        String(a.label || a.id).localeCompare(String(b.label || b.id), undefined, {
+          numeric: true, sensitivity: "base"
+        })
+      );
+  }
+
+  function _rebuildSelect(selectEl, vibes, selectedId) {
+    const list = _sortVibes(vibes);
+    selectEl.innerHTML = "";
+    list.forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v.id;
+      opt.textContent = v.label || v.id;
+      selectEl.appendChild(opt);
+    });
+
+    if (selectedId && list.some(v => v.id === selectedId)) {
+      selectEl.value = selectedId;
+    } else if (selectEl.options.length) {
+      selectEl.selectedIndex = 0;
+    } else {
+      selectEl.value = "";
+    }
+  }
+
+  // We are using /plugin/<plugin_id>
+  function _pluginBasePath() {
+    const p = (window.location.pathname || "").replace(/\/+$/, "");
+    // expected: /plugin/newspaper_poster
+    return p;
+  }
+
+  async function loadVibesIntoDropdown() {
+    const mainSel = document.getElementById("vibeSelect");
+    if (!mainSel) return;
+
+    const ps = (typeof pluginSettings !== "undefined" && pluginSettings) ? pluginSettings : null;
+    const saved = ps?.vibe_id ? String(ps.vibe_id) : "";
+
+    const url = `${_pluginBasePath()}/vibes/list?ts=${Date.now()}`;
+    const r = await fetch(url, { cache: "no-store" });
+    const data = await r.json();
+
+    if (!r.ok || !data.ok) {
+      mainSel.innerHTML = `<option value="">Vibes failed to load</option>`;
+      return;
+    }
+    _rebuildSelect(mainSel, data.vibes, saved);
+  }
+
+  // ===== modal open/close =====
+  function openVibeAddModal() {
+    const err = document.getElementById("vibeAddError");
+    if (err) err.textContent = "";
+    const name = document.getElementById("vibeAddName");
+    const desc = document.getElementById("vibeAddDesc");
+    if (name) name.value = "";
+    if (desc) desc.value = "";
+    const m = document.getElementById("vibeAddModal");
+    if (m) m.style.display = "block";
+  }
+  function closeVibeAddModal() {
+    const m = document.getElementById("vibeAddModal");
+    if (m) m.style.display = "none";
+  }
+
+let _vibeToastTimer = null;
+
+function showVibeToast(message, type = "success", ms = 1400) {
+  const el = document.getElementById("vibeToast");
+  const txt = document.getElementById("vibeToastText");
+  if (!el || !txt) return;
+
+  txt.textContent = message || "";
+
+  el.classList.remove("success", "failure");
+  el.classList.add(type === "failure" ? "failure" : "success");
+
+  el.style.display = "block";
+
+  if (_vibeToastTimer) clearTimeout(_vibeToastTimer);
+  _vibeToastTimer = setTimeout(() => hideVibeToast(), ms);
+}
+
+function hideVibeToast() {
+  const el = document.getElementById("vibeToast");
+  if (!el) return;
+  el.style.display = "none";
+  if (_vibeToastTimer) {
+    clearTimeout(_vibeToastTimer);
+    _vibeToastTimer = null;
+  }
+}
+
+  function openVibeDeleteModal() {
+    const err = document.getElementById("vibeDeleteError");
+    if (err) err.textContent = "";
+
+    const mainSel = document.getElementById("vibeSelect");
+    const delSel = document.getElementById("vibeDeleteSelect");
+
+    if (mainSel && delSel) {
+      delSel.innerHTML = "";
+      Array.from(mainSel.options).forEach(o => {
+        const opt = document.createElement("option");
+        opt.value = o.value;
+        opt.textContent = o.textContent;
+        delSel.appendChild(opt);
+      });
+      delSel.value = mainSel.value || (delSel.options.length ? delSel.options[0].value : "");
+    }
+
+    const m = document.getElementById("vibeDeleteModal");
+    if (m) m.style.display = "block";
+  }
+  function closeVibeDeleteModal() {
+    const m = document.getElementById("vibeDeleteModal");
+    if (m) m.style.display = "none";
+  }
+
+let _pendingDeleteVibeId = "";
+
+function openVibeDeleteConfirmModal(text, id) {
+  _pendingDeleteVibeId = id || "";
+  const t = document.getElementById("vibeDeleteConfirmText");
+  if (t) t.textContent = text || "Delete this vibe?";
+  const m = document.getElementById("vibeDeleteConfirmModal");
+  if (m) m.style.display = "block";
+}
+
+function closeVibeDeleteConfirmModal() {
+  const m = document.getElementById("vibeDeleteConfirmModal");
+  if (m) m.style.display = "none";
+  _pendingDeleteVibeId = "";
+}
+
+  // Add a Vibe
+  async function submitVibeAdd() {
+  const err = document.getElementById("vibeAddError");
+  if (err) err.textContent = "";
+
+  const name = (document.getElementById("vibeAddName")?.value || "").trim();
+  const desc = (document.getElementById("vibeAddDesc")?.value || "").trim();
+
+  if (!name || !desc) {
+    if (err) err.textContent = "Both Vibe Name and Vibe Description are required.";
+    return;
+  }
+
+  const url = `${_pluginBasePath()}/vibes/add`;
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ label: name, description: desc })
+  });
+
+  const data = await r.json().catch(() => ({}));
+
+  // Handle duplicate name nicely
+  if (!r.ok) {
+    if (r.status === 409 && (data.error === "duplicate_vibe_label" || data.error === "duplicate_vibe_id")) {
+      if (err) err.textContent = data.message || "That vibe name already exists. Please pick another.";
+      return;
+    }
+    if (err) err.textContent = data.error || `Add failed (HTTP ${r.status})`;
+    return;
+  }
+
+  if (!data.ok) {
+    if (err) err.textContent = data.message || data.error || "Add failed.";
+    return;
+  }
+
+  const mainSel = document.getElementById("vibeSelect");
+if (mainSel) _rebuildSelect(mainSel, data.vibes, data.added_id);
+
+closeVibeAddModal();
+showVibeToast("Vibe added", "success", 1400);
+  
+}
+
+// Delete Vibe
+async function submitVibeDelete() {
+  const err = document.getElementById("vibeDeleteError");
+  if (err) err.textContent = "";
+
+  const delSel = document.getElementById("vibeDeleteSelect");
+  const id = (delSel?.value || "").trim();
+  if (!id) {
+    if (err) err.textContent = "Select a vibe to delete.";
+    return;
+  }
+
+  const label = delSel?.selectedOptions?.[0]?.textContent?.trim() || id;
+  openVibeDeleteConfirmModal(`Delete "${label}"? This cannot be undone.`, id);
+}
+
+async function confirmVibeDelete() {
+  const id = (_pendingDeleteVibeId || "").trim();
+  if (!id) return;
+
+  const url = `${_pluginBasePath()}/vibes/delete`;
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id })
+  });
+
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok || !data.ok) {
+    const err = document.getElementById("vibeDeleteError");
+    if (err) err.textContent = data.error || `Delete failed (HTTP ${r.status})`;
+    closeVibeDeleteConfirmModal();
+    return;
+  }
+
+  const mainSel = document.getElementById("vibeSelect");
+  const prev = mainSel ? mainSel.value : "";
+  if (mainSel) {
+    const selectedAfter = (prev && prev !== data.deleted_id) ? prev : "";
+    _rebuildSelect(mainSel, data.vibes, selectedAfter);
+  }
+
+  closeVibeDeleteConfirmModal();
+  closeVibeDeleteModal();
+}
+</script>
+
+<script>
+  // Persist ONLY UI selections in the browser (clears when user clears site data)
+  const LS_KEY_NP_POSTER = "np_poster_ui_settings_v1";
+
+  function _lsRead() {
+    try {
+      const raw = localStorage.getItem(LS_KEY_NP_POSTER);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  }
+
+  function _lsWrite(obj) {
+    try {
+      localStorage.setItem(LS_KEY_NP_POSTER, JSON.stringify(obj || {}));
+    } catch {}
+  }
+
+  function _getRadioValue(name) {
+    const el = document.querySelector(`input[name="${name}"]:checked`);
+    return el ? el.value : "";
+  }
+
+  function _setRadioValue(name, value) {
+    const el = document.querySelector(`input[name="${name}"][value="${value}"]`);
+    if (el) el.checked = true;
+  }
+
+  function _captureUiSettings() {
+    return {
+      vibe_id: (document.getElementById("vibeSelect")?.value || ""),
+      padImage: !!document.getElementById("padImage")?.checked,
+      backgroundOption: _getRadioValue("backgroundOption") || "blur",
+      backgroundColor: (document.getElementById("backgroundColor")?.value || "#ffffff"),
+      imageModel: (document.getElementById("imageModel")?.value || ""),
+      analysisModel: (document.getElementById("analysisModel")?.value || ""),
+    };
+  }
+
+  function _applyUiSettings(saved) {
+    if (!saved || typeof saved !== "object") return;
+
+    // Vibe (only works after vibes are loaded)
+    if (saved.vibe_id && document.getElementById("vibeSelect")) {
+      document.getElementById("vibeSelect").value = saved.vibe_id;
+    }
+
+    // Scale to fit
+    if (typeof saved.padImage === "boolean" && document.getElementById("padImage")) {
+      document.getElementById("padImage").checked = saved.padImage;
+    }
+
+    // Background
+    if (saved.backgroundOption) _setRadioValue("backgroundOption", saved.backgroundOption);
+    if (saved.backgroundColor && document.getElementById("backgroundColor")) {
+      document.getElementById("backgroundColor").value = saved.backgroundColor;
+    }
+
+    // AI Models
+    if (saved.imageModel && document.getElementById("imageModel")) {
+      document.getElementById("imageModel").value = saved.imageModel;
+    }
+    if (saved.analysisModel && document.getElementById("analysisModel")) {
+      document.getElementById("analysisModel").value = saved.analysisModel;
+    }
+  }
+
+  function _wireUiAutosave() {
+    const save = () => _lsWrite(_captureUiSettings());
+
+    // Save on changes
+    ["vibeSelect", "padImage", "backgroundColor", "imageModel", "analysisModel"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("change", save);
+      el.addEventListener("input", save);
+    });
+
+    // Save on background radio change
+    document.querySelectorAll('input[name="backgroundOption"]').forEach((el) => {
+      el.addEventListener("change", save);
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", async () => {
+  // Load vibes first so vibe_id apply can work
+  if (typeof loadVibesIntoDropdown === "function") {
+    try { await loadVibesIntoDropdown(); } catch {}
+  }
+
+  // Apply localStorage last so it wins over pluginSettings defaults
+  const saved = _lsRead();
+  _applyUiSettings(saved);
+
+  _wireUiAutosave();
+
+  // Close modals when clicking the backdrop
+window.addEventListener("click", (ev) => {
+  const addM = document.getElementById("vibeAddModal");
+  const delM = document.getElementById("vibeDeleteModal");
+  const confM = document.getElementById("vibeDeleteConfirmModal");
+
+  if (ev.target === addM) closeVibeAddModal();
+  if (ev.target === delM) closeVibeDeleteModal();
+  if (ev.target === confM) closeVibeDeleteConfirmModal();
+});
+
+});
+</script>
