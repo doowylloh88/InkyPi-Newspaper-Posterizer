@@ -1,0 +1,8 @@
+# AI Service SDKs
+openai
+groq
+
+# Image Processing & Utilities
+Pillow
+requests
+python-dotenv
