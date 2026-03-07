@@ -27,7 +27,7 @@
 Install the plugin using the InkyPi CLI, providing the plugin ID & GitHub repository URL:
 
 ```bash
-inkypi plugin install newspaper_posterizer https://github.com/doowylloh88/InkyPi-Newspaper-Posterizer
+inkypi plugin install newspaper_poster https://github.com/doowylloh88/InkyPi-Newspaper-Posterizer
 ```
 **Requirements**
 
